@@ -101,8 +101,6 @@ async function buildContext(journal) {
   return {
     document: journal,
     title: journal.name,
-    isOwner: journal.isOwner,
-    isGM: game.user?.isGM,
     sourceId: flag.sourceId ?? journal.id,
     sourceType,
     sourceTypeLabel: humanize(sourceType),
@@ -116,7 +114,7 @@ async function buildContext(journal) {
   };
 }
 
-function bindSheetInteractions(sheet, root) {
+function bindSheetInteractions(root) {
   if (!root) return;
   const navButtons = root.querySelectorAll("[data-mk-page-id]");
   const panels = root.querySelectorAll("[data-mk-page-panel]");
@@ -132,20 +130,6 @@ function bindSheetInteractions(sheet, root) {
     });
   }
 
-  for (const button of root.querySelectorAll("[data-mk-edit-page]")) {
-    button.addEventListener("click", async event => {
-      event.preventDefault();
-      const id = button.dataset.mkEditPage;
-      const page = sheet.document?.pages?.get?.(id);
-      if (!page) return;
-      try {
-        return await page.render(true);
-      } catch (error) {
-        console.warn(`${MODULE_ID} | Could not open page editor`, error);
-        ui.notifications.warn("Could not open the native Journal page editor.");
-      }
-    });
-  }
 }
 
 const { DocumentSheetV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -179,7 +163,7 @@ export class MKSandboxJournalSheet extends HandlebarsApplicationMixin(DocumentSh
 
   async _onRender(context, options) {
     await super._onRender(context, options);
-    bindSheetInteractions(this, this.element);
+    bindSheetInteractions(this.element);
   }
 }
 

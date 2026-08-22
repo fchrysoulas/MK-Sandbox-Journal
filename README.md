@@ -13,6 +13,7 @@ Imported records remain standard Foundry `JournalEntry` and `JournalEntryPage` d
 - Preserves GM Notes and manually created pages when imported content is refreshed.
 - Shows live import progress.
 - Presents imported records through the **MK Sandbox Journal** sheet with page navigation and source metadata.
+- Uses Signika by default with a configurable module-wide font-family setting.
 - Provides a GM-only **MK Sandbox** import button in the Journal sidebar.
 - Exposes `game.mkSandboxJournal.import()` for macros and console use.
 - Keeps the GitHub token in memory only for the active import.
@@ -68,7 +69,7 @@ The custom sheet provides:
 - Journal page navigation;
 - source ID, path, and revision metadata;
 - a full-width content area;
-- an **Edit Page** button for opening Foundry's native page editor.
+- consistent typography across record content and controls.
 
 ## GitHub access
 

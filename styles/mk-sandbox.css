@@ -1,3 +1,36 @@
+:root {
+  --mk-sandbox-font-family: "Signika", sans-serif;
+}
+
+.mk-sandbox-journal-sheet .window-content,
+.mk-sandbox-journal-sheet .window-content button,
+.mk-sandbox-journal-sheet .window-content input,
+.mk-sandbox-journal-sheet .window-content select,
+.mk-sandbox-journal-sheet .window-content textarea,
+.mk-sandbox-import-dialog .window-content,
+.mk-sandbox-import-dialog .window-content button,
+.mk-sandbox-import-dialog .window-content input,
+.mk-sandbox-import-dialog .window-content select,
+.mk-sandbox-import-dialog .window-content textarea,
+#mk-sandbox-import-progress,
+#mk-sandbox-import-progress button,
+.mk-sandbox-import-button {
+  font-family: var(--mk-sandbox-font-family, "Signika", sans-serif);
+}
+
+.mk-sandbox-journal-sheet :is(h1, h2, h3, h4, h5, h6),
+.mk-sandbox-journal-sheet .window-title,
+.mk-sandbox-import-dialog :is(h1, h2, h3, h4, h5, h6),
+.mk-sandbox-import-dialog .window-title,
+#mk-sandbox-import-progress :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--mk-sandbox-font-family, "Signika", sans-serif) !important;
+}
+
+.mk-sandbox-journal-sheet .window-header button,
+.mk-sandbox-import-dialog .window-header button {
+  font-family: var(--font-awesome, "Font Awesome 6 Free") !important;
+}
+
 .mk-sandbox-journal-sheet .window-content {
   padding: 0 !important;
   overflow: hidden !important;
@@ -21,7 +54,7 @@
   min-height: 540px;
   background: var(--mk-main);
   color: var(--mk-text);
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--mk-sandbox-font-family, "Signika", sans-serif);
 }
 
 .mk-sheet-sidebar {
@@ -129,23 +162,10 @@
 
 .mk-page-panel { display: none; }
 .mk-page-panel.active { display: block; }
-.mk-page-toolbar { display: flex; justify-content: flex-end; margin: 0 0 10px; }
-.mk-page-toolbar button {
-  min-height: 28px;
-  padding: 4px 9px;
-  border: 1px solid #c9b992;
-  border-radius: 5px;
-  background: #fff;
-  color: #5b503d;
-  font-size: .7rem;
-  cursor: pointer;
-}
-.mk-page-toolbar button:hover { background: #f4eee0; }
-
 .mk-page-body { color: var(--mk-text); line-height: 1.52; }
 .mk-page-body > footer { margin-top: 18px; }
 .mk-page-body section { scroll-margin-top: 12px; }
-.mk-page-body a { color: #6d5833; }
+.mk-page-body a { color: #fff; }
 .mk-page-body code { color: #574a34; }
 .mk-page-body pre {
   max-width: 100%;

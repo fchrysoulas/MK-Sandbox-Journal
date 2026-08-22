@@ -2,7 +2,8 @@
   "MK_SANDBOX.Title": "MK Sandbox Journal",
   "MK_SANDBOX.Import": "Import MK Sandbox",
   "MK_SANDBOX.Sheet": "MK Sandbox Journal",
-  "MK_SANDBOX.EditPage": "Edit Page",
   "MK_SANDBOX.Source": "Source",
-  "MK_SANDBOX.Revision": "Revision"
+  "MK_SANDBOX.Revision": "Revision",
+  "MK_SANDBOX.Settings.FontFamily.Name": "Journal font family",
+  "MK_SANDBOX.Settings.FontFamily.Hint": "CSS font-family used by MK Sandbox sheets and importer controls. For example: Signika, sans-serif."
 }

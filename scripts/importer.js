@@ -17,7 +17,7 @@ import { MODULE_ID, SHEET_CLASS_KEY } from "./sheet.js";
 export async function runImport() {
   "use strict";
 
-  const IMPORTER_VERSION = "1.0.0";
+  const IMPORTER_VERSION = "1.0.1";
   const FLAG_SCOPE = "world";
   const FLAG_KEY = "mkSandbox";
   const GITHUB_MAX_ATTEMPTS = 5;
@@ -163,7 +163,7 @@ export async function runImport() {
       "background:linear-gradient(145deg,rgba(29,21,17,.99),rgba(66,38,25,.99))",
       "box-shadow:0 .55rem 1.6rem rgba(0,0,0,.55)",
       "color:#f3e3c4",
-      "font-family:var(--font-body,serif)"
+      "font-family:var(--mk-sandbox-font-family,'Signika',sans-serif)"
     ].join(";");
 
     root.innerHTML = `
@@ -241,9 +241,9 @@ export async function runImport() {
     card: "#ffffff",
     border: "#e2ddd3",
     shadow: "0 2px 8px rgba(0,0,0,.10)",
-    page: "width:100%;margin:0;background:#f8f9fa;color:#2a2a2a;font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;line-height:1.5;",
+    page: "width:100%;margin:0;background:#f8f9fa;color:#2a2a2a;font-family:var(--mk-sandbox-font-family,'Signika',sans-serif);line-height:1.5;",
     panel: "margin:.7rem 0;padding:.9rem 1rem;border:1px solid #e2ddd3;border-radius:.55rem;background:#ffffff;box-shadow:0 2px 8px rgba(0,0,0,.08);color:#2a2a2a;",
-    section: "margin:0;font-family:var(--font-h2,serif);font-size:1.35rem;line-height:1.2;letter-spacing:.08em;text-transform:uppercase;color:#2a2a2a;border:0;font-weight:700;",
+    section: "margin:0;font-family:var(--mk-sandbox-font-family,'Signika',sans-serif);font-size:1.35rem;line-height:1.2;letter-spacing:.08em;text-transform:uppercase;color:#2a2a2a;border:0;font-weight:700;",
     table: "width:100%;border-collapse:collapse;margin:.35rem 0;background:transparent;",
     th: "width:31%;padding:.5rem .58rem;text-align:left;vertical-align:top;border-bottom:1px solid #e2ddd3;color:#665b49;font-weight:700;",
     td: "padding:.5rem .58rem;vertical-align:top;border-bottom:1px solid #e2ddd3;color:#2a2a2a;",
@@ -353,7 +353,7 @@ export async function runImport() {
       <div style="display:flex;flex-wrap:wrap;width:100%;min-height:520px;border:1px solid #d7d1c5;border-radius:.65rem;background:#f8f9fa;box-shadow:0 8px 32px rgba(0,0,0,.15);overflow:hidden;">
         <aside style="flex:0 0 248px;min-width:210px;max-width:100%;background:rgba(42,42,42,.98);color:#ffffff;display:flex;flex-direction:column;">
           <div style="padding:1.15rem 1.15rem .5rem;text-align:center;">${portrait}
-            <h1 style="margin:0 0 .3rem;font-family:var(--font-h1,serif);font-size:1.55rem;line-height:1.08;letter-spacing:.09em;text-transform:uppercase;color:#ffffff;border:0;overflow-wrap:anywhere;">${escapeHTML(title)}</h1>
+            <h1 style="margin:0 0 .3rem;font-family:var(--mk-sandbox-font-family,'Signika',sans-serif);font-size:1.55rem;line-height:1.08;letter-spacing:.09em;text-transform:uppercase;color:#ffffff;border:0;overflow-wrap:anywhere;">${escapeHTML(title)}</h1>
             <div style="display:flex;justify-content:center;align-items:center;gap:.42rem;margin:.2rem 0 .75rem;color:#c9bb9d;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;">
               <i class="${visual.icon}" style="color:#b9a987;"></i><span>${escapeHTML(visual.label)}</span>
             </div>
@@ -440,6 +440,7 @@ export async function runImport() {
 
   async function promptSettings() {
     return DialogV2.prompt({
+      classes: ["mk-sandbox-import-dialog"],
       window: { title: "Import MK Sandbox from GitHub" },
       content: settingsFormHTML,
       ok: {

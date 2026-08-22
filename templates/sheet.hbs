@@ -36,11 +36,6 @@
       <div class="mk-page-stack">
         {{#each pages}}
         <section class="mk-page-panel {{#if active}}active{{/if}}" data-mk-page-panel="{{id}}">
-          {{#if ../isOwner}}
-          <div class="mk-page-toolbar">
-            <button type="button" data-mk-edit-page="{{id}}"><i class="fas fa-pen-to-square"></i> Edit Page</button>
-          </div>
-          {{/if}}
           <div class="mk-page-body">{{{content}}}</div>
         </section>
         {{/each}}

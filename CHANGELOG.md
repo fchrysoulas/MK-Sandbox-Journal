@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1
+
+- Removed the Edit Page button from the custom journal sheet.
+- Added a configurable module-wide font-family setting with Signika as the default.
+- Applied the configured font consistently to journal content, headings, window titles, importer controls, and progress UI.
+- Preserved Foundry's icon font for window-header controls.
+
 ## 1.0.0
 
 - Converted the MK-Sandbox GitHub importer from a standalone macro into a Foundry module.

@@ -1,6 +1,13 @@
 import { MODULE_ID, SHEET_CLASS_KEY, registerMKSandboxSheet } from "./sheet.js";
 import { runImport } from "./importer.js";
 
+const DEFAULT_FONT_FAMILY = '"Signika", sans-serif';
+
+function applyFontFamily(value = DEFAULT_FONT_FAMILY) {
+  const fontFamily = String(value ?? "").trim() || DEFAULT_FONT_FAMILY;
+  document.documentElement.style.setProperty("--mk-sandbox-font-family", fontFamily);
+}
+
 function registerSettings() {
   const defs = {
     owner: { name: "GitHub owner", hint: "Default repository owner used by the importer.", type: String, default: "fchrysoulas" },
@@ -14,7 +21,14 @@ function registerSettings() {
       default: "gm",
       choices: { gm: "GM only", observer: "Players: Observer" }
     },
-    updateExisting: { name: "Update existing imported pages", hint: "Update Overview and Raw Source while preserving GM Notes and custom pages.", type: Boolean, default: true }
+    updateExisting: { name: "Update existing imported pages", hint: "Update Overview and Raw Source while preserving GM Notes and custom pages.", type: Boolean, default: true },
+    fontFamily: {
+      name: "MK_SANDBOX.Settings.FontFamily.Name",
+      hint: "MK_SANDBOX.Settings.FontFamily.Hint",
+      type: String,
+      default: DEFAULT_FONT_FAMILY,
+      onChange: applyFontFamily
+    }
   };
 
   for (const [key, cfg] of Object.entries(defs)) {
@@ -81,6 +95,7 @@ async function applySheetToExistingImports() {
 
 Hooks.once("init", () => {
   registerSettings();
+  applyFontFamily(game.settings.get(MODULE_ID, "fontFamily"));
   registerMKSandboxSheet();
   console.log(`${MODULE_ID} | Initialized.`);
 });
@@ -88,7 +103,7 @@ Hooks.once("init", () => {
 Hooks.once("ready", async () => {
   game.mkSandboxJournal = {
     moduleId: MODULE_ID,
-    version: game.modules.get(MODULE_ID)?.version ?? "1.0.0",
+    version: game.modules.get(MODULE_ID)?.version ?? "1.0.1",
     sheetClass: SHEET_CLASS_KEY,
     import: runImport
   };

@@ -15,8 +15,8 @@ Use these values when submitting or updating the module in Foundry's package adm
 | Support URL | `https://ko-fi.com/mikrokouneli` |
 | License | MIT |
 | Latest manifest URL | `https://github.com/fchrysoulas/MK-Sandbox-Journal/releases/latest/download/module.json` |
-| Version 1.0.0 manifest URL | `https://github.com/fchrysoulas/MK-Sandbox-Journal/releases/download/v1.0.0/module.json` |
-| Release notes URL | `https://github.com/fchrysoulas/MK-Sandbox-Journal/releases/tag/v1.0.0` |
+| Version 1.0.1 manifest URL | `https://github.com/fchrysoulas/MK-Sandbox-Journal/releases/download/v1.0.1/module.json` |
+| Release notes URL | `https://github.com/fchrysoulas/MK-Sandbox-Journal/releases/tag/v1.0.1` |
 | Minimum Foundry version | `13` |
 | Verified Foundry version | `14` |
 | Suggested categories | Content Importers; Journals and Notes; External Integrations |
@@ -33,8 +33,8 @@ The version-specific manifest URL belongs in a Foundry package-version record. T
 6. Create and push the matching tag:
 
    ```powershell
-   git tag v1.0.0
-   git push origin v1.0.0
+   git tag v1.0.1
+   git push origin v1.0.1
    ```
 
 The `release.yml` workflow rejects a tag that does not exactly match the manifest version. On success it creates a GitHub Release containing:
