@@ -1,0 +1,52 @@
+<div class="mk-sheet-shell">
+  <aside class="mk-sheet-sidebar">
+    <div class="mk-sheet-portrait">
+      <i class="{{icon}}"></i>
+    </div>
+    <h1 class="mk-sheet-title">{{title}}</h1>
+    <div class="mk-sheet-type"><i class="{{icon}}"></i> {{sourceTypeLabel}}</div>
+
+    <nav class="mk-sheet-tabs" aria-label="Journal pages">
+      {{#each pages}}
+      <button type="button" class="mk-sheet-tab {{#if active}}active{{/if}}"
+        data-mk-page-id="{{id}}" data-mk-page-name="{{name}}">
+        <i class="{{icon}}"></i><span>{{name}}</span>
+      </button>
+      {{/each}}
+    </nav>
+
+    <div class="mk-sheet-meta">
+      {{#if sourceId}}<div><strong>ID</strong><span>{{sourceId}}</span></div>{{/if}}
+      {{#if sourcePath}}<div><strong>Source</strong><span>{{sourcePath}}</span></div>{{/if}}
+      {{#if revision}}<div><strong>Revision</strong><span>{{revision}}</span></div>{{/if}}
+      {{#if repository}}<div><strong>Repo</strong><span>{{repository}}</span></div>{{/if}}
+      {{#if ref}}<div><strong>Ref</strong><span>{{ref}}</span></div>{{/if}}
+    </div>
+  </aside>
+
+  <main class="mk-sheet-main">
+    <header class="mk-sheet-main-header">
+      <div>
+        <div class="mk-sheet-eyebrow">MK SANDBOX</div>
+        <h2 data-mk-active-page-title>{{#if hasPages}}{{pages.0.name}}{{else}}Journal{{/if}}</h2>
+      </div>
+    </header>
+
+    {{#if hasPages}}
+      <div class="mk-page-stack">
+        {{#each pages}}
+        <section class="mk-page-panel {{#if active}}active{{/if}}" data-mk-page-panel="{{id}}">
+          {{#if ../isOwner}}
+          <div class="mk-page-toolbar">
+            <button type="button" data-mk-edit-page="{{id}}"><i class="fas fa-pen-to-square"></i> Edit Page</button>
+          </div>
+          {{/if}}
+          <div class="mk-page-body">{{{content}}}</div>
+        </section>
+        {{/each}}
+      </div>
+    {{else}}
+      <div class="mk-empty-page"><p>This journal has no pages yet.</p></div>
+    {{/if}}
+  </main>
+</div>

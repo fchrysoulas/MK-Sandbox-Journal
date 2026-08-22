@@ -1,0 +1,80 @@
+name: Publish Foundry module
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+
+      - name: Validate version and manifest URLs
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -e . module.json >/dev/null
+
+          version="$(jq -r '.version' module.json)"
+          tag_version="${GITHUB_REF_NAME#v}"
+          expected_download="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/mk-sandbox-journal.zip"
+
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "Release tag must use vMAJOR.MINOR.PATCH format." >&2
+            exit 1
+          }
+
+          test "$version" = "$tag_version" || {
+            echo "module.json version '$version' does not match tag '$GITHUB_REF_NAME'." >&2
+            exit 1
+          }
+
+          test "$(jq -r '.download' module.json)" = "$expected_download" || {
+            echo "module.json download URL must be $expected_download" >&2
+            exit 1
+          }
+
+          test "$(jq -r '.manifest' module.json)" = "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/module.json" || {
+            echo "module.json manifest URL must point to the latest release asset." >&2
+            exit 1
+          }
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          find scripts -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Build release archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir package
+          cp -R lang scripts styles templates CHANGELOG.md LICENSE README.md module.json package/
+          cd package
+          zip -r ../mk-sandbox-journal.zip .
+
+      - name: Verify release archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -t mk-sandbox-journal.zip
+          unzip -Z1 mk-sandbox-journal.zip | grep -qx 'module.json'
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            module.json \
+            mk-sandbox-journal.zip \
+            --generate-notes \
+            --title "$GITHUB_REF_NAME"
