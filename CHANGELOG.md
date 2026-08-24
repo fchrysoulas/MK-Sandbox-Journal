@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0
+
+- Resolve each import ref to an immutable Git commit before gathering records.
+- Use raw GitHub downloads for public repositories so large imports do not exhaust the unauthenticated REST API request limit.
+- Exclude all `system/` sources from journal imports and from the campaign manifest page.
+- Exclude repository instruction and index files from supplemental record discovery.
+- Retire sources removed from the current import set while preserving GM Notes and manually created pages.
+- Remove importer-owned pages from previously imported `system/` and repository-metadata sources.
+- Add a dedicated Clocks journal category for authoritative clock records.
+
 ## 1.0.1
 
 - Removed the Edit Page button from the custom journal sheet.

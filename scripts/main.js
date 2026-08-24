@@ -103,7 +103,7 @@ Hooks.once("init", () => {
 Hooks.once("ready", async () => {
   game.mkSandboxJournal = {
     moduleId: MODULE_ID,
-    version: game.modules.get(MODULE_ID)?.version ?? "1.0.1",
+    version: game.modules.get(MODULE_ID)?.version ?? "1.1.0",
     sheetClass: SHEET_CLASS_KEY,
     import: runImport
   };

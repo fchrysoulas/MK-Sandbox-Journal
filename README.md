@@ -7,8 +7,9 @@ Imported records remain standard Foundry `JournalEntry` and `JournalEntryPage` d
 ## Features
 
 - Imports and synchronizes an MK-Sandbox repository from GitHub.
-- Reads `manifest.json`, `world-state.json`, indexed records, and supported files in Events, Reports, Artifacts, and Plots.
-- Organizes Campaign, Actor, Faction, Location, Route, Artifact, Plot, Action, Event, Report, History, Market, and uncategorized records into dedicated Journal folders.
+- Reads `manifest.json`, `world-state.json`, indexed records, and supported content files in Events, Reports, Artifacts, and Plots from one immutable repository snapshot.
+- Excludes every source under `system/` plus repository `AGENTS.md` and index `README.md` files.
+- Organizes Campaign, Actor, Faction, Location, Route, Artifact, Plot, Clock, Action, Event, Report, History, Market, and uncategorized records into dedicated Journal folders.
 - Uses stable `flags.world.mkSandbox.sourceId` values to update the correct Foundry journal.
 - Preserves GM Notes and manually created pages when imported content is refreshed.
 - Shows live import progress.
@@ -40,6 +41,8 @@ Alternatively, create Foundry's `Data/modules/mk-sandbox-journal/` directory, ex
 The module remembers only the non-secret owner, repository, ref, root folder, visibility, and update defaults.
 
 Run the importer again whenever the repository changes. With **Update imported pages** enabled, Overview and Raw Source pages are refreshed while GM Notes and manually created pages are preserved.
+
+Sources removed from the current import set are moved to **Retired Sources**. Previously imported `system/` or repository-metadata sources also have their importer-owned Overview and Raw Source pages removed; GM Notes and manually created pages remain untouched.
 
 ## Journal structure
 

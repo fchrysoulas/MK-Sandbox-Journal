@@ -3,7 +3,7 @@
  * Foundry Virtual Tabletop v13–v14
  *
  * Run as a GM from a Script Macro. The macro reads manifest.json from the
- * configured GitHub repository, downloads every indexed element plus repository reports, events, artifacts, and plots, and creates
+ * configured GitHub repository, downloads eligible indexed elements plus repository reports, events, artifacts, and plots, and creates
  * or updates a structured Journal folder tree. The presentation mimics the Campaign Codex visual language,
  * but every imported record remains a standard Foundry JournalEntry with ordinary
  * text JournalEntryPages. The macro never writes flags.campaign-codex and does not
@@ -11,13 +11,15 @@
  *
  * The GitHub token is used only in memory for this run. It is not stored in
  * Foundry settings, flags, chat, or console output.
+ * Sources under system/ and repository instruction/index metadata are never
+ * used as imported journal content.
  */
 import { MODULE_ID, SHEET_CLASS_KEY } from "./sheet.js";
 
 export async function runImport() {
   "use strict";
 
-  const IMPORTER_VERSION = "1.0.1";
+  const IMPORTER_VERSION = "1.1.0";
   const FLAG_SCOPE = "world";
   const FLAG_KEY = "mkSandbox";
   const GITHUB_MAX_ATTEMPTS = 5;
@@ -86,6 +88,17 @@ export async function runImport() {
     .filter(Boolean)
     .map(encodeURIComponent)
     .join("/");
+
+  const sourcePathSegments = (path) => String(path ?? "")
+    .split("/")
+    .filter(Boolean);
+
+  const isSystemSourcePath = (path) => sourcePathSegments(path)[0]?.toLowerCase() === "system";
+
+  const isRepositoryMetadataPath = (path) => {
+    const filename = sourcePathSegments(path).at(-1)?.toLowerCase() ?? "";
+    return filename === "agents.md" || filename === "agents.override.md" || filename === "readme.md";
+  };
 
   const fileExtension = (path) => {
     const match = String(path ?? "").toLowerCase().match(/\.([a-z0-9]+)$/);
@@ -263,6 +276,7 @@ export async function runImport() {
     report: { label: "Report", icon: "fas fa-file-alt" },
     artifact: { label: "Artifact", icon: "fas fa-gem" },
     plot: { label: "Plot", icon: "fas fa-project-diagram" },
+    clock: { label: "Clock", icon: "fas fa-clock" },
     market: { label: "Market", icon: "fas fa-store" },
     history: { label: "History", icon: "fas fa-history" },
     "historical-event": { label: "History", icon: "fas fa-history" },
@@ -490,8 +504,7 @@ export async function runImport() {
 
   const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-  async function githubContentPayload(path) {
-    const url = `${apiBase}/contents/${normalizePath(path)}?ref=${encodeURIComponent(settings.ref)}`;
+  async function githubApiPayload(url, label) {
     let lastError = null;
 
     for (let attempt = 1; attempt <= GITHUB_MAX_ATTEMPTS; attempt += 1) {
@@ -511,7 +524,7 @@ export async function runImport() {
         lastError = error;
         if (attempt < GITHUB_MAX_ATTEMPTS) {
           const delay = GITHUB_BASE_RETRY_MS * (2 ** (attempt - 1)) + Math.floor(Math.random() * 450);
-          progress.update(0, "GitHub connection retry", `${path} · attempt ${attempt + 1}/${GITHUB_MAX_ATTEMPTS}`);
+          progress.update(0, "GitHub connection retry", `${label} · attempt ${attempt + 1}/${GITHUB_MAX_ATTEMPTS}`);
           await sleep(delay);
           continue;
         }
@@ -519,7 +532,7 @@ export async function runImport() {
           ? `request timed out after ${Math.round(GITHUB_REQUEST_TIMEOUT_MS / 1000)} seconds`
           : (error?.message ?? String(error));
         throw new Error(
-          `Unable to fetch ${path} after ${GITHUB_MAX_ATTEMPTS} attempts (${reason}). ` +
+          `Unable to fetch ${label} after ${GITHUB_MAX_ATTEMPTS} attempts (${reason}). ` +
           "This is commonly caused by temporary GitHub throttling or a browser/network CORS failure."
         );
       } finally {
@@ -547,25 +560,87 @@ export async function runImport() {
           ? retryAfterHeader * 1000
           : GITHUB_BASE_RETRY_MS * (2 ** (attempt - 1)) + Math.floor(Math.random() * 450);
         lastError = new Error(`HTTP ${response.status}${detail}`);
-        progress.update(0, "GitHub request retry", `${path} · HTTP ${response.status} · attempt ${attempt + 1}/${GITHUB_MAX_ATTEMPTS}`);
+        progress.update(0, "GitHub request retry", `${label} · HTTP ${response.status} · attempt ${attempt + 1}/${GITHUB_MAX_ATTEMPTS}`);
         await sleep(retryAfter);
         continue;
       }
 
       if (response.status === 404 && !settings.token) {
-        throw new Error(`GitHub returned 404 for ${path}. The repository may be private; provide a read-only token.`);
+        throw new Error(`GitHub returned 404 for ${label}. The repository may be private; provide a read-only token.`);
       }
       if (response.status === 403) {
         const remaining = response.headers.get("x-ratelimit-remaining");
-        throw new Error(`GitHub denied access to ${path}${detail}${remaining === "0" ? " — API rate limit exhausted." : ""}`);
+        throw new Error(`GitHub denied access to ${label}${detail}${remaining === "0" ? " — API rate limit exhausted." : ""}`);
       }
-      throw new Error(`GitHub request failed for ${path}: HTTP ${response.status}${detail}`);
+      throw new Error(`GitHub request failed for ${label}: HTTP ${response.status}${detail}`);
     }
 
-    throw lastError ?? new Error(`Unable to fetch ${path}.`);
+    throw lastError ?? new Error(`Unable to fetch ${label}.`);
+  }
+
+  let snapshotRef = settings.ref;
+
+  async function resolveSnapshotRef() {
+    const url = `${apiBase}/commits/${encodeURIComponent(settings.ref)}`;
+    const payload = await githubApiPayload(url, `ref ${settings.ref}`);
+    if (!payload?.sha) throw new Error(`GitHub did not resolve ref ${settings.ref} to a commit.`);
+    snapshotRef = payload.sha;
+    return snapshotRef;
+  }
+
+  async function githubContentPayload(path) {
+    const url = `${apiBase}/contents/${normalizePath(path)}?ref=${encodeURIComponent(snapshotRef)}`;
+    return githubApiPayload(url, path);
+  }
+
+  async function githubRawFile(path) {
+    const url = `https://raw.githubusercontent.com/${encodeURIComponent(settings.owner)}/${encodeURIComponent(settings.repo)}/${encodeURIComponent(snapshotRef)}/${normalizePath(path)}`;
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= GITHUB_MAX_ATTEMPTS; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), GITHUB_REQUEST_TIMEOUT_MS);
+      try {
+        const response = await fetch(url, {
+          signal: controller.signal,
+          mode: "cors",
+          credentials: "omit",
+          cache: "no-store"
+        });
+        if (response.ok) {
+          const text = await response.text();
+          await sleep(GITHUB_THROTTLE_MS);
+          return text;
+        }
+        if (response.status === 404) {
+          const error = new Error(`GitHub returned 404 for ${path} at ${snapshotRef}.`);
+          error.retryable = false;
+          throw error;
+        }
+        if (![408, 425, 429, 500, 502, 503, 504].includes(response.status)) {
+          const error = new Error(`GitHub raw download failed for ${path}: HTTP ${response.status}.`);
+          error.retryable = false;
+          throw error;
+        }
+        lastError = new Error(`HTTP ${response.status}`);
+      } catch (error) {
+        lastError = error;
+        if (error?.retryable === false) throw error;
+        if (attempt >= GITHUB_MAX_ATTEMPTS) break;
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      const delay = GITHUB_BASE_RETRY_MS * (2 ** (attempt - 1)) + Math.floor(Math.random() * 450);
+      progress.update(0, "GitHub connection retry", `${path} · attempt ${attempt + 1}/${GITHUB_MAX_ATTEMPTS}`);
+      await sleep(delay);
+    }
+
+    throw new Error(`Unable to fetch ${path} after ${GITHUB_MAX_ATTEMPTS} attempts (${lastError?.message ?? "unknown error"}).`);
   }
 
   async function githubFile(path) {
+    if (!settings.token) return githubRawFile(path);
     const payload = await githubContentPayload(path);
     if (Array.isArray(payload)) throw new Error(`${path} is a directory, not a file.`);
     if (payload.encoding !== "base64" || !payload.content) {
@@ -596,7 +671,12 @@ export async function runImport() {
           pending.push(entry.path);
           continue;
         }
-        if (entry.type !== "file" || !acceptedExtensions.has(fileExtension(entry.path))) continue;
+        if (
+          entry.type !== "file" ||
+          !acceptedExtensions.has(fileExtension(entry.path)) ||
+          isSystemSourcePath(entry.path) ||
+          isRepositoryMetadataPath(entry.path)
+        ) continue;
         found.push({
           id: stableIdFromPath(type, entry.path),
           type,
@@ -634,11 +714,13 @@ export async function runImport() {
     route: { name: "Routes", order: 40 },
     artifact: { name: "Artifacts", order: 50 },
     plot: { name: "Plots", order: 60 },
+    clock: { name: "Clocks", order: 65 },
     action: { name: "Actions", order: 70 },
     event: { name: "Events", order: 80 },
     report: { name: "Reports", order: 90 },
     "historical-event": { name: "History", order: 100 },
     market: { name: "Markets", order: 110 },
+    retired: { name: "Retired Sources", order: 900 },
     other: { name: "Other", order: 999 }
   };
 
@@ -649,6 +731,7 @@ export async function runImport() {
     routes: "route",
     artifacts: "artifact",
     plots: "plot",
+    clocks: "clock",
     actions: "action",
     events: "event",
     reports: "report",
@@ -662,6 +745,7 @@ export async function runImport() {
     report: "report",
     artifact: "artifact",
     plot: "plot",
+    clock: "clock",
     "gm-ruling": "historical-event",
     history: "historical-event",
     "historical-event": "historical-event",
@@ -697,7 +781,8 @@ export async function runImport() {
         importerVersion: IMPORTER_VERSION,
         folderKey: key,
         repository: `${settings.owner}/${settings.repo}`,
-        ref: settings.ref
+        ref: settings.ref,
+        sourceCommit: snapshotRef
       })
     };
 
@@ -707,7 +792,7 @@ export async function runImport() {
   }
 
   function entityDisplayName(record, fallbackId) {
-    return record?.name || humanize(String(fallbackId).replace(/^(actor|faction|location|route|action|history|historical-event|event-bundle|event|report|artifact|plot|market|gm-ruling)-/, ""));
+    return record?.name || humanize(String(fallbackId).replace(/^(actor|faction|location|route|action|clock|history|historical-event|event-bundle|event|report|artifact|plot|market|gm-ruling)-/, ""));
   }
 
   function documentLink(sourceId, linkIndex, label = null) {
@@ -1124,6 +1209,13 @@ export async function runImport() {
     return created[0];
   }
 
+  async function removeImportedPage(journal, role) {
+    const existing = journal.pages.find((page) => readFlag(page)?.pageRole === role);
+    if (!existing) return false;
+    await journal.deleteEmbeddedDocuments("JournalEntryPage", [existing.id]);
+    return true;
+  }
+
   async function ensureNotesPage(journal) {
     const existing = journal.pages.find((page) => readFlag(page)?.pageRole === "gm-notes")
       ?? journal.pages.find((page) => page.name === "GM Notes");
@@ -1163,6 +1255,9 @@ export async function runImport() {
       importer: IMPORTER_VERSION,
       importedElements: importStats.success,
       skippedFailed: importStats.failed,
+      retiredSources: importStats.retired,
+      clearedExcludedPages: importStats.clearedExcludedPages,
+      excludedSystemElements: importStats.excludedSystemElements,
       importedAt: formatDate(new Date().toISOString())
     };
     const campaignInfo = `<div style="${CODEX_STYLE.panel}">
@@ -1186,8 +1281,30 @@ export async function runImport() {
     });
   }
 
+  function manifestJournalView(manifest) {
+    const view = JSON.parse(JSON.stringify(manifest ?? {}));
+    if (view.elements) {
+      view.elements = Object.fromEntries(
+        Object.entries(view.elements).filter(([, meta]) => !isSystemSourcePath(meta?.path))
+      );
+    }
+    if (view.directories) {
+      view.directories = Object.fromEntries(
+        Object.entries(view.directories).filter(([, path]) => !isSystemSourcePath(path))
+      );
+    }
+    if (view.entryPoints) {
+      view.entryPoints = Object.fromEntries(
+        Object.entries(view.entryPoints).filter(([, path]) => !isSystemSourcePath(path))
+      );
+    }
+    delete view.systemConversion;
+    return view;
+  }
+
   function campaignRawPage(manifest, worldState) {
-    const manifestHTML = `<div style="${CODEX_STYLE.panel}"><details><summary style="cursor:pointer;font-weight:700;color:#665b49;">Show manifest.json</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;background:#302936;color:#f2ece2;padding:.75rem;border-radius:.45rem;"><code>${escapeHTML(JSON.stringify(manifest, null, 2))}</code></pre></details></div>`;
+    const journalManifest = manifestJournalView(manifest);
+    const manifestHTML = `<div style="${CODEX_STYLE.panel}"><details><summary style="cursor:pointer;font-weight:700;color:#665b49;">Show manifest.json</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;background:#302936;color:#f2ece2;padding:.75rem;border-radius:.45rem;"><code>${escapeHTML(JSON.stringify(journalManifest, null, 2))}</code></pre></details></div>`;
     const worldHTML = `<div style="${CODEX_STYLE.panel}"><details open><summary style="cursor:pointer;font-weight:700;color:#665b49;">Show world-state.json</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;background:#302936;color:#f2ece2;padding:.75rem;border-radius:.45rem;"><code>${escapeHTML(JSON.stringify(worldState, null, 2))}</code></pre></details></div>`;
     return renderCodexShell({
       title: "Campaign Sources",
@@ -1208,18 +1325,17 @@ export async function runImport() {
   let manifest;
   let worldState;
   let readmeText = "";
-  let agentsText = "";
   try {
-    const [manifestText, worldStateText, readmeResult, agentsResult] = await Promise.all([
+    await resolveSnapshotRef();
+    progress.update(7, "Repository snapshot resolved", snapshotRef.slice(0, 12));
+    const [manifestText, worldStateText, readmeResult] = await Promise.all([
       githubFile("manifest.json"),
       githubFile("world-state.json"),
-      githubFile("README.md").catch((error) => `README import failed: ${error.message}`),
-      githubFile("AGENTS.md").catch((error) => `AGENTS import failed: ${error.message}`)
+      githubFile("README.md").catch((error) => `README import failed: ${error.message}`)
     ]);
     manifest = JSON.parse(manifestText);
     worldState = JSON.parse(worldStateText);
     readmeText = readmeResult;
-    agentsText = agentsResult;
     progress.update(12, "Repository index loaded", manifest.name ?? manifest.campaignId ?? "MK Sandbox");
   } catch (error) {
     console.error("MK Sandbox importer:", error);
@@ -1229,15 +1345,19 @@ export async function runImport() {
   }
 
   const failures = [];
-  const manifestElements = Object.entries(manifest.elements ?? {}).map(([id, meta]) => ({
-    id,
-    ...meta,
-    indexed: true,
-    discovered: false
-  }));
+  const allManifestElements = Object.entries(manifest.elements ?? {});
+  const manifestElements = allManifestElements
+    .filter(([, meta]) => !isSystemSourcePath(meta?.path))
+    .map(([id, meta]) => ({
+      id,
+      ...meta,
+      indexed: true,
+      discovered: false
+    }));
 
   progress.update(13, "Discovering supplemental records", "Scanning reports, events, artifacts, and plots");
   const discoveredElements = [];
+  let discoveryComplete = true;
   const discoveryTargets = [
     { type: "event", path: manifest.directories?.events ?? "events/" },
     { type: "report", path: manifest.directories?.reports ?? "reports/" },
@@ -1251,6 +1371,7 @@ export async function runImport() {
       discoveredElements.push(...found);
       progress.update(16, "Discovering supplemental records", `${humanize(target.type)}: ${found.length} file(s)`);
     } catch (error) {
+      discoveryComplete = false;
       failures.push({
         id: `${target.type}-directory`,
         path: target.path,
@@ -1362,6 +1483,7 @@ export async function runImport() {
   const linkIndex = new Map();
   const sourceJournalMap = new Map();
   const existingBySourceId = new Map();
+  const repositoryKey = `${settings.owner}/${settings.repo}`;
 
   for (const journal of game.journal) {
     const flag = readFlag(journal);
@@ -1369,6 +1491,59 @@ export async function runImport() {
   }
 
   const campaignSourceId = "__campaign__";
+  const activeSourceIds = new Set([
+    campaignSourceId,
+    ...sourceElements.map((meta) => meta.id),
+    ...records.map(({ meta, record }) => record.id ?? meta.id)
+  ]);
+  let retiredSourceCount = 0;
+  let clearedExcludedPageCount = 0;
+
+  if (settings.updateExisting) {
+    const retiredFolder = folders.get("retired");
+    for (const journal of game.journal) {
+      const flag = readFlag(journal);
+      if (
+        !flag?.sourceId ||
+        flag.sourceId === campaignSourceId ||
+        flag.repository !== repositoryKey ||
+        activeSourceIds.has(flag.sourceId)
+      ) continue;
+
+      const excludedSource = isSystemSourcePath(flag.sourcePath) || isRepositoryMetadataPath(flag.sourcePath);
+      if (!excludedSource && !discoveryComplete) continue;
+      try {
+        if (excludedSource) {
+          for (const role of ["overview", "raw-source"]) {
+            if (await removeImportedPage(journal, role)) clearedExcludedPageCount += 1;
+          }
+        }
+
+        await journal.update({
+          folder: retiredFolder.id,
+          flags: makeJournalFlags({
+            ...flag,
+            importerVersion: IMPORTER_VERSION,
+            sourceMissing: true,
+            sourceMissingReason: isSystemSourcePath(flag.sourcePath)
+              ? "excluded-system-source"
+              : (isRepositoryMetadataPath(flag.sourcePath) ? "excluded-repository-metadata" : "not-in-current-source-set"),
+            retiredAt: flag.retiredAt ?? new Date().toISOString(),
+            sourceCommit: snapshotRef
+          })
+        });
+        if (!flag.sourceMissing) retiredSourceCount += 1;
+      } catch (error) {
+        failures.push({
+          id: flag.sourceId,
+          path: flag.sourcePath ?? "Foundry JournalEntry",
+          message: `Source retirement failed: ${error.message}`
+        });
+        console.error(`MK Sandbox importer failed to retire ${flag.sourceId}:`, error);
+      }
+    }
+  }
+
   let campaignJournal = existingBySourceId.get(campaignSourceId);
   const campaignFolder = folders.get("campaign");
   const ownership = getOwnership(settings.visibility);
@@ -1384,7 +1559,11 @@ export async function runImport() {
         sourceType: "campaign",
         sourcePath: "manifest.json",
         repository: `${settings.owner}/${settings.repo}`,
-        ref: settings.ref
+        ref: settings.ref,
+        sourceCommit: snapshotRef,
+        sourceMissing: false,
+        sourceMissingReason: null,
+        retiredAt: null
       })
     });
   } else if (settings.updateExisting) {
@@ -1398,7 +1577,11 @@ export async function runImport() {
         sourceType: "campaign",
         sourcePath: "manifest.json",
         repository: `${settings.owner}/${settings.repo}`,
-        ref: settings.ref
+        ref: settings.ref,
+        sourceCommit: snapshotRef,
+        sourceMissing: false,
+        sourceMissingReason: null,
+        retiredAt: null
       })
     });
   }
@@ -1452,8 +1635,12 @@ export async function runImport() {
             sourcePath: meta.path,
             repository: `${settings.owner}/${settings.repo}`,
             ref: settings.ref,
+            sourceCommit: snapshotRef,
             revision: record.revision ?? meta.revision ?? null,
-            sourceUpdatedAt: record.updatedAt ?? null
+            sourceUpdatedAt: record.updatedAt ?? null,
+            sourceMissing: false,
+            sourceMissingReason: null,
+            retiredAt: null
           })
         });
       }
@@ -1476,8 +1663,12 @@ export async function runImport() {
           sourcePath: meta.path,
           repository: `${settings.owner}/${settings.repo}`,
           ref: settings.ref,
+          sourceCommit: snapshotRef,
           revision: record.revision ?? meta.revision ?? null,
-          sourceUpdatedAt: record.updatedAt ?? null
+          sourceUpdatedAt: record.updatedAt ?? null,
+          sourceMissing: false,
+          sourceMissingReason: null,
+          retiredAt: null
         })
       }
     });
@@ -1588,7 +1779,10 @@ export async function runImport() {
 
   const importStats = {
     success: records.length - failures.filter((failure) => failure.message.startsWith("Journal page update failed")).length,
-    failed: failures.length
+    failed: failures.length,
+    retired: retiredSourceCount,
+    clearedExcludedPages: clearedExcludedPageCount,
+    excludedSystemElements: allManifestElements.length - manifestElements.length
   };
 
   progress.update(95, "Updating campaign journal", "Overview, source records, and import report");
@@ -1612,12 +1806,7 @@ export async function runImport() {
       renderMarkdownSource("Repository README", readmeText, "README.md"),
       2000
     ));
-    await upsertImportedPage(campaignJournal, makePage(
-      "Sandbox Instructions",
-      "sandbox-instructions",
-      renderMarkdownSource("Sandbox Instructions", agentsText, "AGENTS.md"),
-      3000
-    ));
+    await removeImportedPage(campaignJournal, "sandbox-instructions");
     if (failures.length) {
       await upsertImportedPage(campaignJournal, makePage(
         "Import Problems",
@@ -1638,7 +1827,7 @@ export async function runImport() {
 
   const message = failures.length
     ? `MK Sandbox import finished with ${failures.length} problem(s). See the Campaign journal's Import Problems page.`
-    : `MK Sandbox import complete: ${records.length} source records created or updated, including artifacts, plots, reports, and events, using the MK Sandbox Journal sheet.`;
+    : `MK Sandbox import complete: ${records.length} source records created or updated; ${retiredSourceCount} obsolete or excluded source(s) retired.`;
 
   progress.complete(message, failures.length > 0);
 
