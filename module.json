@@ -7,6 +7,30 @@
     "minimum": "13",
     "verified": "14"
   },
+  "flags": {
+    "mk-module-hub": {
+      "schemaVersion": 1,
+      "category": "campaign-management",
+      "status": "stable",
+      "icon": "fa-solid fa-book-open",
+      "summary": "Imports and synchronizes structured MK-Sandbox campaign records from GitHub into organized Foundry journals with a dedicated browsing sheet.",
+      "tags": [
+        "Journals",
+        "Campaign Data",
+        "GitHub",
+        "Import",
+        "Synchronization"
+      ],
+      "features": [
+        "Import from immutable GitHub repository snapshots",
+        "Organize records into dedicated Journal folders",
+        "Stable source IDs for safe synchronization",
+        "Preserve GM Notes and manually created pages",
+        "Custom journal sheet with navigation and source metadata",
+        "GM-only import button and macro API"
+      ]
+    }
+  },
   "authors": [
     {
       "name": "Mikrokouneli",
